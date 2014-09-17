@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>conllu.js</title>
+    <meta name="viewport" content="width=device-width">
+    <meta name="description" content="CoNLL-U format library for JavaScript">
+
+    <link rel="stylesheet" href="css/jquery-ui-redmond.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/style-vis.css">
+
+    <script type="text/javascript" src="lib/ext/head.load.min.js"></script>
+</head>
+
+<body>
+  
+  <header class="site-header">      
+    <div class="wrap">
+      <a class="topnav" href="https://github.com/spyysalo/conllu.js">conllu.js</a>
+    </div>
+  </header>
+
+  <div class="page-content">
+    <div class="wrap">
+      <div class="entry">
+
+	<header class="entry-header">
+	  <h1>conllu.js: CoNLL-U format library for JavaScript</h1>
+	</header>
+
+<article class="entry-content">
+
+<p>This is a placeholder for conllu.js library documentation,
+hopefully to follow soon.</p>
+
+<p>For the time being, here is an example editable visualization,
+generated from CoNLL-U formatted input:</p>
+
+<code class="conllu-parse" tabs="yes"><pre>
+1	They	they	PRON	PRN	Case=Nom|Num=Plur	2	nsubj	4:nsubj	_
+2	buy	buy	VERB	VBP	Num=Plur|Per=3|Tense=Pres	0	root	_	_
+3	and	and	CONJ	CC	_	2	cc	_	_
+4	sell	sell	VERB	VBP	Num=Plur|Per=3|Tense=Pres	2	conj	_	_
+5	books	book	NOUN	NNS	Num=Plur	2	dobj	4:dobj	_
+6	.	.	PUNCT	.	_	2	punct	_	_
+
+</pre></code>
+
+<p>Also, please see
+<a href="http://universaldependencies.github.io/docs/">Universal
+Dependencies</a> for an example of a project using the library.</p>
+
+</article>
+
+      </div>
+    </div>
+  </div>
+
+<!--   <footer class="site-footer"> -->
+<!--     <div class="wrap"> -->
+<!--       <p style="float:right">(c) 2014 Sampo Pyysalo(s)</p> -->
+<!--     </div> -->
+<!--   </footer> -->
+
+</body>
+
+<script type="text/javascript">
+    var root = ''; // filled in by jekyll
+    head.js(
+        // External libraries
+        root + 'lib/ext/jquery.min.js',
+        root + 'lib/ext/jquery.svg.min.js',
+        root + 'lib/ext/jquery.svgdom.min.js',
+        root + 'lib/ext/jquery-ui.min.js',
+
+        // brat helper modules
+        root + 'lib/brat/configuration.js',
+        root + 'lib/brat/util.js',
+        root + 'lib/brat/annotation_log.js',
+        root + 'lib/ext/webfont.js',
+        // brat modules
+        root + 'lib/brat/dispatcher.js',
+        root + 'lib/brat/url_monitor.js',
+        root + 'lib/brat/visualizer.js',
+
+        // annotation documentation support
+        root + 'lib/local/annodoc.js',
+        root + 'lib/local/config.js',
+
+        // the conllu.js library itself
+        root + 'conllu.js'
+    );
+
+    var webFontURLs = [
+        root + 'static/fonts/PT_Sans-Caption-Web-Regular.ttf',
+        root + 'static/fonts/Liberation_Sans-Regular.ttf'
+    ];
+
+    /* not used here */
+    var documentCollections = {};
+
+    head.ready(function() {
+	// performes all embedding and support functions
+	Annodoc.activate(Config.bratCollData, documentCollections);
+    });
+</script>
+
+</html>
