@@ -384,20 +384,20 @@ var ConllU = (function(window, undefined) {
         for (var i=0; i<this.comments.length; i++) {
             var comment = this.comments[i];
 
-            m = comment.match(/^(\#\s*visual-style\b)(.*)/);
+            m = comment.match(/^(\#\s*visual-style\s+)(.*)/);
             if (!m) {
                 continue;
             }
             var styleSpec = m[2];
 
             // Attempt to parse as a visual style specification. The
-            // expected format is "<TAB>REF<TAB>KEY:VALUE", where REF
+            // expected format is "REF<TAB>KEY:VALUE", where REF
             // is either a single ID (for a span) or a space-separated
             // ID1 ID2 TYPE triple (for a relation).
-            m = styleSpec.match(/^\t([^\t]+)\t(.+?):(.+)$/);
+            m = styleSpec.match(/^([^\t]+)\t(.+?):(.+)$/);
             if (!m) {
-                // TODO: avoid console.log
-                console.log('warning: failed to parse: "'+comment+'"');
+                // TODO: consider some form of error reporting?
+                //console.log('warning: failed to parse: "'+comment+'"');
                 continue;
             }
             var reference = m[1], key = m[2], value = m[3];
