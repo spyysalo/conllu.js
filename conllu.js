@@ -24,7 +24,7 @@ var ConllU = (function(window, undefined) {
         this.sentences = [];
         this.error = false;
         this.logger = function(s) { /* no-op */ };
-        this.strict = false;
+        this.strict = null; // pick heuristically
     };
 
     Document.prototype.log = function(message) {
@@ -78,8 +78,12 @@ var ConllU = (function(window, undefined) {
         // TODO: handle other newline formats
         var lines = input.split('\n');
 
+        if (this.strict === null) {
+            this.strict = selectParsingMode(input, this.logger);
+        }
+
         // select splitter to use for dividing the lines into fields.
-        var splitter = selectFieldSplitter(input, this.logger, strict);
+        var splitter = selectFieldSplitter(input, this.logger, this.strict);
 
         var elements = [],            
             comments = [],
@@ -147,12 +151,16 @@ var ConllU = (function(window, undefined) {
         // If elements is non-empty, last sentence ended without its
         // expected terminating empty line. Process, but warn if strict.
         if (elements.length !== 0) {
-            if (strict) {
+            if (this.strict) {
                 this.logError('missing blank line after last sentence');
             }
             var sId = 'S' + (this.sentences.length+1);
             var sentence = new Sentence(sId, elements, comments);
             this.sentences.push(sentence);
+            // reset
+            elements = [];
+            comments = [];
+            beforeSentence = true;
         }
 
         // If comments is non-empty, there were comments after the
@@ -1139,19 +1147,25 @@ var ConllU = (function(window, undefined) {
         }
     }
 
-    var selectFieldSplitter = function(conll, log, strict) {
-        // return function to use for dividing lines into fields.
+    var selectParsingMode = function(conll, log) {
+        // return whether to use strict mode parsing
 
-        if (strict) {
-            return strictFieldSplitter;
-        }
         // very simple heuristic: any TABs in the input trigger
         // strict parsing, loose only if none present.
         if (conll.indexOf('\t') !== -1) {
             log('note: TAB found, parsing CoNLL-U in strict mode.')
-            return strictFieldSplitter;
+            return true;
         } else {
             log('note: no TAB found, parsing CoNLL-U in loose mode.')
+            return false;
+        }
+    };
+
+    var selectFieldSplitter = function(conll, log, strict) {
+        // return function to use for dividing lines into fields.
+        if (strict) {
+            return strictFieldSplitter;
+        } else {
             return looseFieldSplitter;
         }
     };
