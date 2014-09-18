@@ -177,7 +177,9 @@ var ConllU = (function(window, undefined) {
             'entities',
             'attributes',
             'relations',
-            'comments'
+            'comments',
+            'styles',
+            'sentlabels'
         ];
         for (var i=0; i<categories.length; i++) {
             mergedBratData[categories[i]] = [];
@@ -373,21 +375,86 @@ var ConllU = (function(window, undefined) {
         return comments;
     };
 
-    // return representation of sentence in brat embedded format (see
-    // http://brat.nlplab.org/embed.html)
+    // Return styles on sentence annotations for visualization with
+    // brat. Note: this feature is an extension of both the CoNLL-U
+    // comment format and the basic brat data format.
+    Sentence.prototype.bratStyles = function() {
+        var styles = [];
+
+        for (var i=0; i<this.comments.length; i++) {
+            var comment = this.comments[i];
+
+            m = comment.match(/^(\#\s*visual-style\s+)(.*)/);
+            if (!m) {
+                continue;
+            }
+            var styleSpec = m[2];
+
+            // Attempt to parse as a visual style specification. The
+            // expected format is "REF<TAB>KEY:VALUE", where REF
+            // is either a single ID (for a span) or a space-separated
+            // ID1 ID2 TYPE triple (for a relation).
+            m = styleSpec.match(/^([^\t]+)\t(.+?):(.+)$/);
+            if (!m) {
+                // TODO: consider some form of error reporting?
+                //console.log('warning: failed to parse: "'+comment+'"');
+                continue;
+            }
+            var reference = m[1], key = m[2], value = m[3];
+
+            // adjust every ID in reference for brat
+            if (reference.indexOf(' ') === -1) {
+                reference = this.id + '-T' + reference;
+            } else {
+                reference = reference.split(' ');
+                reference[0] = this.id + '-T' + reference[0];
+                reference[1] = this.id + '-T' + reference[1];
+            }
+
+            styles.push([reference, key, value]);
+        }
+        
+        return styles;
+    };
+
+    // Return label of sentence for visualization with brat, or null
+    // if not defined. Note: this feature is an extension of both the
+    // CoNLL-U comment format and the basic brat data format.
+    Sentence.prototype.bratLabel = function() {
+        var label = null;
+
+        for (var i=0; i<this.comments.length; i++) {
+            var comment = this.comments[i];
+
+            m = comment.match(/^(\#\s*sentence-label\b)(.*)/);
+            if (!m) {
+                continue;
+            }
+            label = m[2].trim();
+        }
+        return label;
+    };
+
+    // Return representation of sentence in brat embedded format (see
+    // http://brat.nlplab.org/embed.html).
+    // Note: "styles" is an extension, not part of the basic format.
     Sentence.prototype.toBrat = function() {
         var text = this.bratText();
         var spans = this.bratSpans();
         var attributes = this.bratAttributes();
         var relations = this.bratRelations();
         var comments = this.bratComments();
+        var styles = this.bratStyles();
+        var labels = [this.bratLabel()];
 
         return {
             'text': text,
             'entities': spans,
             'attributes': attributes,
             'relations': relations,
-            'comments': comments
+            'comments': comments,
+            'styles': styles,
+            'sentlabels': labels,
         };
     };
 
