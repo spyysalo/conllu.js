@@ -35,18 +35,25 @@
 <p>This is a placeholder for conllu.js library documentation,
 hopefully to follow soon.</p>
 
-<p>For the time being, here is an example editable visualization,
-generated from CoNLL-U formatted input:</p>
+<p>For the time being, here is an example editable visualization
+generated from CoNLL-U formatted input that illustrates support for
+two "structured comments", <code>visual-style</code> and 
+<code>sentence-label</code>.</p>
 
 <code class="conllu-parse" tabs="yes"><pre>
-# visual-style	1	bgColor:blue
-# visual-style	2 1 nsubj	color:blue
+# sentence-label A
+# visual-style 1	bgColor:blue
+# visual-style 1	fgColor:white
+# visual-style 2 1 nsubj	color:blue
 1	They	they	PRON	PRN	Case=Nom|Num=Plur	2	nsubj	4:nsubj	_
 2	buy	buy	VERB	VBP	Num=Plur|Per=3|Tense=Pres	0	root	_	_
 3	and	and	CONJ	CC	_	2	cc	_	_
 4	sell	sell	VERB	VBP	Num=Plur|Per=3|Tense=Pres	2	conj	_	_
 5	books	book	NOUN	NNS	Num=Plur	2	dobj	4:dobj	_
 6	.	.	PUNCT	.	_	2	punct	_	_
+
+# sentence-label B
+1	buy	buy	VERB	VBP	Num=Plur|Per=3|Tense=Pres	0	root	_	_
 
 </pre></code>
 
