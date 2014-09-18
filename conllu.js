@@ -153,6 +153,10 @@ var ConllU = (function(window, undefined) {
             var sId = 'S' + (this.sentences.length+1);
             var sentence = new Sentence(sId, elements, comments);
             this.sentences.push(sentence);
+            // reset
+            elements = [];
+            comments = [];
+            beforeSentence = true;
         }
 
         // If comments is non-empty, there were comments after the
