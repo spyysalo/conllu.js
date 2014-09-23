@@ -3,7 +3,7 @@
 
 /*
 CoNLL-U format library for JavaScript.
-Home:http://github.com/spyysalo/conllu.js
+Home: http://github.com/spyysalo/conllu.js
 Format: http://universaldependencies.github.io/docs/format.html
 
 Author: Sampo Pyysalo
