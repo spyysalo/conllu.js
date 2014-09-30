@@ -3,7 +3,7 @@
 
 /*
 CoNLL-U format library for JavaScript.
-Home:http://github.com/spyysalo/conllu.js
+Home: http://github.com/spyysalo/conllu.js
 Format: http://universaldependencies.github.io/docs/format.html
 
 Author: Sampo Pyysalo
@@ -288,10 +288,38 @@ var ConllU = (function(window, undefined) {
         });
     };
 
+    // return words with possible modifications for visualization with
+    // brat
+    Sentence.prototype.bratWords = function() {
+        var words = this.words();
+        
+        for (var i=0; i<words.length; i++) {
+            if (isRtl(words[i].form)) {
+                words[i] = deepCopy(words[i]);
+                words[i].form = rtlFix(words[i].form);
+            }
+        }
+
+        return words;
+    };
+
+    // return tokens with possible modifications for visualization
+    // with brat
+    Sentence.prototype.bratTokens = function() {
+        var tokens = this.tokens();
+
+        for (var i=0; i<tokens.length; i++) {
+            tokens[i] = deepCopy(tokens[i]);
+            tokens[i].form = rtlFix(tokens[i].form);
+        }
+
+        return tokens;
+    };
+
     // return the text of the sentence for visualization with brat
     Sentence.prototype.bratText = function() {
-        var words = this.words();
-        var tokens = this.tokens();
+        var words = this.bratWords();
+        var tokens = this.bratTokens();
 
         var wordText = words.map(function(w) { return w.form }).join(' ');
         var tokenText = tokens.map(function(w) { return w.form }).join(' ');
@@ -311,7 +339,7 @@ var ConllU = (function(window, undefined) {
             offset = this.baseOffset;
 
         // create an annotation for each word
-        var words = this.words();
+        var words = this.bratWords();
         for (var i=0; i<words.length; i++) {
             var length = words[i].form.length;
             spans.push([this.id+'-T'+words[i].id, words[i].cpostag, 
@@ -1179,8 +1207,40 @@ var ConllU = (function(window, undefined) {
     };
 
     var nullLogger = function(message) {
-	return null;
+        return null;
     }
+
+    /* 
+     * Return true iff given string only contains characters from a
+     * right-to-left Unicode block and is not empty.
+     */
+    var isRtl = function(s) {
+        // range from http://stackoverflow.com/a/14824756
+        return !!s.match(/^[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]+$/);
+    };
+
+    /*
+     * Return given token with possible modifications to accommodate
+     * issues in brat rendering of right-to-left text
+     * (https://github.com/UniversalDependencies/docs/issues/52)
+     */
+    var rtlFix = function(s) {
+        var prefix = '\u02D1',
+            suffix = '\u02D1';
+        if (isRtl(s)) {
+            s = prefix + s + suffix;
+        }
+        return s;
+    };
+
+    /*
+     * Return a deep copy of the given object. Note: not particularly
+     * efficient, and all fields must be serializable for this to work
+     * correctly.
+     */
+    var deepCopy = function(o) {
+        return JSON.parse(JSON.stringify(o));
+    };
 
     /*
      * Regular expressions for various parts of the format.
