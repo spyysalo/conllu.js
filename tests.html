@@ -35,26 +35,6 @@
 <p>This file contains an informal mixture of tests for various aspects of
 the CoNLL-U format.</p>
 
-<h2>Temporary, debugging</h2>
-
-<pre><code class="language-conllu"># give the toys to the children
-1     donner    donner   VERB   _   VerbForm=Inf               0   root   _   give
-2     les       le       DET    _   Definite=Def|Number=Plur   3   det    _   the
-3     jouets    jouet    NOUN   _   Gender=Masc|Number=Plur    1   dobj   _   toys
-4-5   aux       _        _      _   _                          _   _      _   _
-4     à         à        ADP    _   _                          6   case   _   to
-5     les       le       DET    _   Definite=Def|Number=Plur   6   det    _   the
-6     enfants   enfant   NOUN   _   Gender=Masc|Number=Plur    1   nmod   _   children
-
-# now the parallel English tree
-1     give       donner   VERB   _   VerbForm=Inf               0   root   _   give
-2     the        le       DET    _   Definite=Def|Number=Plur   3   det    _   the
-3     toys       jouet    NOUN   _   Gender=Masc|Number=Plur    1   dobj   _   toys
-4     to         à        ADP    _   _                          6   case   _   to
-5     the        le       DET    _   Definite=Def|Number=Plur   6   det    _   the
-6     children   enfant   NOUN   _   Gender=Masc|Number=Plur    1   nmod   _   children
-</pre></code>
-
 <h2>Valid examples:</h2>
 
 <h3>Multiword token ("haven't")</h3>
@@ -103,6 +83,26 @@ the CoNLL-U format.</p>
 5	.	.	PUNCT	_	_	3	punct	_	_
 
 </div>
+
+<h3>Multiple sentences and multiword token</h3>
+
+<pre><code class="language-conllu"># give the toys to the children
+1     donner    donner   VERB   _   VerbForm=Inf               0   root   _   give
+2     les       le       DET    _   Definite=Def|Number=Plur   3   det    _   the
+3     jouets    jouet    NOUN   _   Gender=Masc|Number=Plur    1   dobj   _   toys
+4-5   aux       _        _      _   _                          _   _      _   _
+4     à         à        ADP    _   _                          6   case   _   to
+5     les       le       DET    _   Definite=Def|Number=Plur   6   det    _   the
+6     enfants   enfant   NOUN   _   Gender=Masc|Number=Plur    1   nmod   _   children
+
+# now the parallel English tree
+1     give       donner   VERB   _   VerbForm=Inf               0   root   _   give
+2     the        le       DET    _   Definite=Def|Number=Plur   3   det    _   the
+3     toys       jouet    NOUN   _   Gender=Masc|Number=Plur    1   dobj   _   toys
+4     to         à        ADP    _   _                          6   case   _   to
+5     the        le       DET    _   Definite=Def|Number=Plur   6   det    _   the
+6     children   enfant   NOUN   _   Gender=Masc|Number=Plur    1   nmod   _   children
+</pre></code>
 
 <h3>Sentence labels</h3>
 
