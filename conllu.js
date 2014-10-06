@@ -415,7 +415,8 @@ var ConllU = (function(window, undefined) {
     // brat. Note: this feature is an extension of both the CoNLL-U
     // comment format and the basic brat data format.
     Sentence.prototype.bratStyles = function() {
-        var styles = [];
+        var styles = [],
+            wildcards = [];
 
         for (var i=0; i<this.comments.length; i++) {
             var comment = this.comments[i];
@@ -427,17 +428,41 @@ var ConllU = (function(window, undefined) {
             var styleSpec = m[2];
 
             // Attempt to parse as a visual style specification. The
-            // expected format is "REF<SPACE>KEY:VALUE", where REF
-            // is either a single ID (for a span) or a space-separated
-            // ID1 ID2 TYPE triple (for a relation).
-            m = styleSpec.match(/^([^\t]+)\s+(\S+?):(\S+)\s*$/);
+            // expected format is "REF<SPACE>STYLE", where REF
+            // is either a single ID (for a span), a space-separated
+            // ID1 ID2 TYPE triple (for a relation), or a special
+            // wildcard value like "arcs", and STYLE is either
+            // a colon-separated key-value pair or a color.
+            m = styleSpec.match(/^([^\t]+)\s+(\S+)\s*$/);
             if (!m) {
                 // TODO: avoid console.log
                 console.log('warning: failed to parse: "'+comment+'"');
                 continue;
             }
-            var reference = m[1], key = m[2], value = m[3];
+            var reference = m[1], style = m[2];
 
+            // split style into key and value, adding a key to
+            // color-only styles as needed for the reference type.
+            var key, value;
+            m = style.match(/^(\S+):(\S+)$/);
+            if (m) {
+                key = m[1];
+                value = m[2];
+            } else {
+                value = style;
+                if (reference === 'arcs' || reference.indexOf(' ') !== -1) {
+                    key = 'color';
+                } else {
+                    key = 'bgColor';
+                }
+            }
+
+            // store wildcards for separate later processing
+            if (reference.match(/^(nodes|arcs)$/)) {
+                wildcards.push([reference, key, value]);
+                continue;
+            }
+            
             // adjust every ID in reference for brat
             if (reference.indexOf(' ') === -1) {
                 reference = this.id + '-T' + reference;
@@ -448,6 +473,42 @@ var ConllU = (function(window, undefined) {
             }
 
             styles.push([reference, key, value]);
+        }
+
+        // for expanding wildcards, first determine which words / arcs
+        // have already been referenced, and then add the style to
+        // everything that hasn't been referenced.
+        var referenced = {};
+        for (var i=0; i<styles.length; i++) {
+            referenced[styles[i][0]] = true;
+        }
+        for (var i=0; i<wildcards.length; i++) {
+            var reference = wildcards[i][0],
+                key = wildcards[i][1],
+                value = wildcards[i][2];
+            if (reference === 'nodes') {
+                var words = this.words();
+                for (var j=0; j<words.length; j++) {
+                    var r = this.id + '-T' + words[j].id;
+                    if (!referenced[r]) {
+                        styles.push([r, key, value]);
+                        referenced[r] = true;
+                    }
+                }
+            } else if (reference === 'arcs') {
+                var deps = this.dependencies();
+                for (var j=0; j<deps.length; j++) {
+                    var r = [this.id + '-T' + deps[j][1],
+                             this.id + '-T' + deps[j][0],
+                             deps[j][2]];
+                    if (!referenced[r]) {
+                        styles.push([r, key, value]);
+                        referenced[r] = true;
+                    }
+                }
+            } else {
+                console.log('internal error');
+            }
         }
         
         return styles;
