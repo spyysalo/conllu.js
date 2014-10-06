@@ -476,11 +476,11 @@ var ConllU = (function(window, undefined) {
         }
 
         // for expanding wildcards, first determine which words / arcs
-        // have already been referenced, and then add the style to
-        // everything that hasn't been referenced.
-        var referenced = {};
+        // styles have already been set, and then add the style to
+        // everything that hasn't.
+        var setStyle = {};
         for (var i=0; i<styles.length; i++) {
-            referenced[styles[i][0]] = true;
+            setStyle[styles[i][0].concat([styles[i][1]])] = true;
         }
         for (var i=0; i<wildcards.length; i++) {
             var reference = wildcards[i][0],
@@ -490,9 +490,9 @@ var ConllU = (function(window, undefined) {
                 var words = this.words();
                 for (var j=0; j<words.length; j++) {
                     var r = this.id + '-T' + words[j].id;
-                    if (!referenced[r]) {
+                    if (!setStyle[r.concat([key])]) {
                         styles.push([r, key, value]);
-                        referenced[r] = true;
+                        setStyle[r.concat([key])] = true;
                     }
                 }
             } else if (reference === 'arcs') {
@@ -501,9 +501,9 @@ var ConllU = (function(window, undefined) {
                     var r = [this.id + '-T' + deps[j][1],
                              this.id + '-T' + deps[j][0],
                              deps[j][2]];
-                    if (!referenced[r]) {
+                    if (!setStyle[r.concat([key])]) {
                         styles.push([r, key, value]);
-                        referenced[r] = true;
+                        setStyle[r.concat([key])] = true;
                     }
                 }
             } else {
