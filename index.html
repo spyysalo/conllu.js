@@ -67,6 +67,26 @@ two "structured comments", <code>visual-style</code> and
 <p>Here are some more tests:
 <a href="tests.html">tests.html</a></p>
 
+<p>Here's a validating visualizer. Visualization:</p>
+<div id="vis"></div>
+
+<p> Input (editable):</p>
+<textarea id="input" rows="10" cols="80" style="margin-top:0"></textarea>
+
+<p>Log and validator output:</p>
+<textarea id="log" rows="10" cols="80" style="margin-top:0" disabled="disabled"></textarea>
+
+<!-- no need to show the intermediate data representation -->
+<textarea id="parsed" style="display:none; margin: 0"></textarea>
+
+<!-- this div just initializes the pre-built visualization above. -->
+<div class="conllu-parse" data-visid="vis" data-inputid="input" data-parsedid="parsed" data-logid="log"/>
+1	edit	edit	VERB	VERB	_	0	root	_	_
+2	this	this	NOUN	NOUN	_	1	dobj	_	_
+
+</div>
+
+
 <p>Also, please see
 <a href="http://universaldependencies.github.io/docs/">Universal
 Dependencies</a> for an example of a project using the library.</p>
