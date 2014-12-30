@@ -1309,7 +1309,7 @@ var ConllU = (function(window, undefined) {
      */
 
     // match single (feature, value[s]) pair in FEATS
-    var featureRegex = /^([A-Z0-9][a-zA-Z0-9]*(?:\[[a-z0-9+]\])?)=([A-Z0-9][a-zA-Z0-9]*(?:,[A-Z0-9][a-zA-Z0-9]*)*)$/;
+    var featureRegex = /^([A-Z0-9][a-zA-Z0-9]*(?:\[[a-z0-9]+\])?)=([A-Z0-9][a-zA-Z0-9]*(?:,[A-Z0-9][a-zA-Z0-9]*)*)$/;
 
     // match single feature value in FEATS
     var featureValueRegex = /^[A-Z0-9][a-zA-Z0-9]*$/;
