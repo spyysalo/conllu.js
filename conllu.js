@@ -611,7 +611,7 @@ var ConllU = (function(window, undefined) {
         for (var i=0; i<this.elements.length; i++) {
             var element = this.elements[i];
 
-            if (element.isMultiword()) {
+            if (element.isMultiword() || element.isEmptyNode()) {
                 continue; // only check simple word sequence here
             }
             
