@@ -46,12 +46,12 @@ var ConllU = (function(window, undefined) {
      *
      * Each word line has the following format
      * 1.  ID: Word index, integer starting at 1 for each new sentence; 
-     *     may be a range for tokens with multiple words.
+     *     may be a range for tokens with multiple words; may be a decimal
+     *     number for empty nodes.
      * 2.  FORM: Word form or punctuation symbol.
      * 3.  LEMMA: Lemma or stem of word form.
-     * 4.  CPOSTAG: Google universal part-of-speech tag from the 
-     *     Universal POS tag set.
-     * 5.  POSTAG: Language-specific part-of-speech tag; underscore 
+     * 4.  UPOSTAG: Universal part-of-speech tag.
+     * 5.  XPOSTAG: Language-specific part-of-speech tag; underscore
      *     if not available.
      * 6.  FEATS: List of morphological features from the Universal 
      *     feature inventory or from a defined language-specific extension;
@@ -342,7 +342,7 @@ var ConllU = (function(window, undefined) {
         var words = this.bratWords();
         for (var i=0; i<words.length; i++) {
             var length = words[i].form.length;
-            spans.push([this.id+'-T'+words[i].id, words[i].cpostag, 
+            spans.push([this.id+'-T'+words[i].id, words[i].upostag,
                         [[offset, offset+length]]]);
             offset += length + 1;
         }
@@ -393,15 +393,15 @@ var ConllU = (function(window, undefined) {
     Sentence.prototype.bratComments = function() {
         var words = this.words();
 
-        // TODO: better visualization for LEMMA, POSTAG, and MISC.
+        // TODO: better visualization for LEMMA, XPOSTAG, and MISC.
         var comments = [];
         for (var i=0; i<words.length; i++) {
             var word = words[i],
                 tid = this.id+'-T'+word.id,
                 label = 'AnnotatorNotes';
             comments.push([tid, label, 'Lemma: ' + word.lemma]);
-            if (word.postag !== '_') {
-                comments.push([tid, label, 'Postag: ' + word.postag]);
+            if (word.xpostag !== '_') {
+                comments.push([tid, label, 'Xpostag: ' + word.xpostag]);
             }
             if (word.misc !== '_') {
                 comments.push([tid, label, 'Misc: ' + word.misc]);
@@ -473,7 +473,6 @@ var ConllU = (function(window, undefined) {
             }
 
             styles.push([reference, key, value]);
-        }
 
         // for expanding wildcards, first determine which words / arcs
         // styles have already been set, and then add the style to
@@ -785,8 +784,8 @@ var ConllU = (function(window, undefined) {
         this.id = fields[0];
         this.form = fields[1];
         this.lemma = fields[2];
-        this.cpostag = fields[3];
-        this.postag = fields[4];
+        this.upostag = fields[3];
+        this.xpostag = fields[4];
         this.feats = fields[5];
         this.head = fields[6];
         this.deprel = fields[7];
@@ -841,8 +840,22 @@ var ConllU = (function(window, undefined) {
             } else {
                 return true;
             }
+        } else if (id.match(/^(\d+)\.(\d+)$/)) {
+            m = id.match(/^(\d+)\.(\d+)$/);
+            if (!m) {
+                console.log('internal error');
+                return false;
+            }
+            var iPart = parseInt(m[1], 10),
+                fPart = parseInt(m[2], 10);
+            if (iPart == 0 || fPart == 0) {
+                issues.push('ID indices must start from 1: "'+id+'"');
+                return false;
+            } else {
+                return true;
+            }
         } else {
-            issues.push('ID must be integer or range: "'+id+'"');
+            issues.push('ID must be integer, range, or decimal: "'+id+'"');
             return false;
         }
     };
@@ -867,20 +880,20 @@ var ConllU = (function(window, undefined) {
         }
     };
     
-    Element.prototype.validateCpostag = function(cpostag, issues) {
+    Element.prototype.validateUpostag = function(upostag, issues) {
         issues = (issues !== undefined ? issues : []);
         
-        if (!this.validateField(cpostag, 'CPOSTAG', issues)) {
+        if (!this.validateField(upostag, 'UPOSTAG', issues)) {
             return false;
         } else {
             return true;
         }
     };
 
-    Element.prototype.validatePostag = function(postag, issues) {
+    Element.prototype.validateXpostag = function(xpostag, issues) {
         issues = (issues !== undefined ? issues : []);
         
-        if (!this.validateField(postag, 'POSTAG', issues)) {
+        if (!this.validateField(xpostag, 'XPOSTAG', issues)) {
             return false;
         } else {
             return true;
@@ -984,7 +997,7 @@ var ConllU = (function(window, undefined) {
         // TODO: don't short-circuit on first error
         for (var i=0; i<deparr.length; i++) {
             var dep = deparr[i];
-            m = dep.match(/^(\d+):(\S+)$/);
+            m = dep.match(/^(\d+(?:\.\d+)?):(\S+)$/);
             if (!m) {
                 // TODO more descriptive issue
                 issues.push('invalid DEPS: "'+deps+'"');
@@ -992,7 +1005,7 @@ var ConllU = (function(window, undefined) {
             }
             var head = m[1], deprel = m[2];
             if (prevHead !== null &&
-                parseInt(head, 10) < parseInt(prevHead, 10)) {
+                parseFloat(head) < parseFloat(prevHead)) {
                 issues.push('DEPS must be ordered by head index');
                 return false;
             }
@@ -1100,8 +1113,8 @@ var ConllU = (function(window, undefined) {
         // iff all remaining fields (3-10) contain just an underscore.
         if (this.isMultiword()) {
             if (this.lemma != '_' || 
-                this.cpostag != '_' ||
-                this.postag != '_' ||
+                this.upostag != '_' ||
+                this.xpostag != '_' ||
                 this.feats != '_' ||
                 this.head != '_' ||
                 this.deprel != '_' ||
@@ -1114,8 +1127,8 @@ var ConllU = (function(window, undefined) {
         // if we're here, not a multiword token.
 
         this.validateLemma(this.lemma, issues);
-        this.validateCpostag(this.cpostag, issues);
-        this.validatePostag(this.postag, issues);
+        this.validateUpostag(this.upostag, issues);
+        this.validateXpostag(this.xpostag, issues);
         this.validateFeats(this.feats, issues);
         this.validateHead(this.head, issues);
         this.validateDeprel(this.deprel, issues);
@@ -1142,8 +1155,8 @@ var ConllU = (function(window, undefined) {
         if (this.isMultiword()) {
             // valid as long as everything is blank
             this.lemma = '_'; 
-            this.cpostag = '_';
-            this.postag = '_';
+            this.upostag = '_';
+            this.xpostag = '_';
             this.feats = '_';
             this.head = '_';
             this.deprel = '_';
@@ -1158,14 +1171,14 @@ var ConllU = (function(window, undefined) {
             this.lemma = '<ERROR>';
         }
 
-        if(!this.validateCpostag(this.cpostag)) {
-            log('repair: blanking invalid CPOSTAG');
-            this.cpostag = '_'; // TODO: not valid
+        if(!this.validateUpostag(this.upostag)) {
+            log('repair: blanking invalid UPOSTAG');
+            this.upostag = '_'; // TODO: not valid
         }
 
-        if(!this.validatePostag(this.postag)) {
-            log('repair: blanking invalid POSTAG');
-            this.postag = '_';
+        if(!this.validateXpostag(this.xpostag)) {
+            log('repair: blanking invalid XPOSTAG');
+            this.xpostag = '_';
         }
 
         if(!this.validateFeats(this.feats)) {
