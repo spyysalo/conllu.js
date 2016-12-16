@@ -473,6 +473,7 @@ var ConllU = (function(window, undefined) {
             }
 
             styles.push([reference, key, value]);
+        }
 
         // for expanding wildcards, first determine which words / arcs
         // styles have already been set, and then add the style to
