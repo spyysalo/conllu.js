@@ -965,6 +965,8 @@ var ConllU = (function(window, undefined) {
             return true; // exceptional case for Element.repair()
         } else if (!this.validateField(head, 'HEAD', issues)) {
             return false;
+        } else if (this.isEmptyNode() && head === '_') {
+            return true; // underscore permitted for empty nodes.
         } else if (!head.match(/^\d+$/)) {
             issues.push('HEAD must be an ID or zero: "'+head+'"');
             return false;
@@ -1037,6 +1039,10 @@ var ConllU = (function(window, undefined) {
 
     Element.prototype.isMultiword = function() {
         return !!this.id.match(/^\d+-\d+$/);
+    };
+
+    Element.prototype.isEmptyNode = function() {
+        return !!this.id.match(/^\d+\.\d+$/);
     };
 
     Element.prototype.rangeFrom = function() {
