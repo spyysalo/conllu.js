@@ -649,7 +649,7 @@ var ConllU = (function(window, undefined) {
         return issues.length === initialIssueCount;
     };
 
-    Sentence.prototype.validateEmptyWordSequence = function(issues) {
+    Sentence.prototype.validateEmptyNodeSequence = function(issues) {
         issues = (issues !== undefined ? issues : []);
 
         var initialIssueCount = issues.length;
