@@ -577,6 +577,7 @@ var ConllU = (function(window, undefined) {
         this.validateUniqueIds(issues);
         this.validateWordSequence(issues);
         this.validateMultiwordSequence(issues);
+        this.validateEmptyNodeSequence(issues);
         this.validateReferences(issues);
 
         return issues;
@@ -648,6 +649,33 @@ var ConllU = (function(window, undefined) {
         return issues.length === initialIssueCount;
     };
 
+    Sentence.prototype.validateEmptyWordSequence = function(issues) {
+        issues = (issues !== undefined ? issues : []);
+
+        var initialIssueCount = issues.length;
+        var previousWordId = '0';    // TODO check https://github.com/UniversalDependencies/docs/issues/382
+        var nextEmptyNodeId = 1;
+
+        for (var i=0; i<this.elements.length; i++) {
+            var element = this.elements[i];
+
+            if (element.isWord()) {
+                previousWordId = element.id;
+                nextEmptyNodeId = 1;
+            } else if (element.isEmptyNode()) {
+                var expectedId = previousWordId + '.' + nextEmptyNodeId;
+                if (element.id !== expectedId) {
+                    this.addError('empty node IDs should be *.1, *.2, ... ' +
+                                  'expected '+expectedId+', got '+element.id,
+                                  element, issues);
+                }
+                nextEmptyNodeId++;
+            }
+        }
+
+        return issues.length === initialIssueCount;
+    }
+
     // Check validity of ID references in HEAD and DEPS.
     Sentence.prototype.validateReferences = function(issues) {
         issues = (issues !== undefined ? issues : []);
@@ -693,6 +721,10 @@ var ConllU = (function(window, undefined) {
             this.repairMultiwordSequence(log);
         }
 
+        if (!this.validateEmptyNodeSequence()) {
+            this.repairEmptyNodeSequence(log);
+        }
+
         if (!this.validateReferences()) {
             this.repairReferences(log);
         }
@@ -728,6 +760,11 @@ var ConllU = (function(window, undefined) {
 
     Sentence.prototype.repairMultiwordSequence = function(log) {
         log('TODO: implement ConllU.Sentence.repairMultiwordSequence()');
+        return true;
+    };
+
+    Sentence.prototype.repairEmptyNodeSequence = function(log) {
+        log('TODO: implement ConllU.Sentence.repairEmptyNodeSequence()');
         return true;
     };
 
