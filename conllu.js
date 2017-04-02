@@ -173,9 +173,12 @@ var ConllU = (function(window, undefined) {
         return this;
     }
 
-    Document.prototype.toBrat = function(logger) {
+    Document.prototype.toBrat = function(logger, includeEmpty) {
         if (logger !== undefined) {
             this.logger = logger;
+        }
+        if (includeEmpty === undefined) {
+            includeEmpty = false;    // hide empty nodes by default
         }
 
         // merge brat data over all sentences
@@ -207,7 +210,7 @@ var ConllU = (function(window, undefined) {
                 }
             }
             sentence.setBaseOffset(textOffset !== 0 ? textOffset + 1 : 0);
-            bratData = sentence.toBrat();
+            bratData = sentence.toBrat(includeEmpty);
             
             // merge
             if (mergedBratData['text'].length !== 0) {
@@ -260,9 +263,9 @@ var ConllU = (function(window, undefined) {
         return dependencies;
     };
 
-    Sentence.prototype.words = function() {
+    Sentence.prototype.words = function(includeEmpty) {
         return this.elements.filter(function(e) { 
-            return e.isWord();
+            return (e.isWord() || (includeEmpty && e.isEmptyNode()));
         });
     };
 
@@ -290,8 +293,8 @@ var ConllU = (function(window, undefined) {
 
     // return words with possible modifications for visualization with
     // brat
-    Sentence.prototype.bratWords = function() {
-        var words = this.words();
+    Sentence.prototype.bratWords = function(includeEmpty) {
+        var words = this.words(includeEmpty);
         
         for (var i=0; i<words.length; i++) {
             if (isRtl(words[i].form)) {
@@ -317,8 +320,8 @@ var ConllU = (function(window, undefined) {
     };
 
     // return the text of the sentence for visualization with brat
-    Sentence.prototype.bratText = function() {
-        var words = this.bratWords();
+    Sentence.prototype.bratText = function(includeEmpty) {
+        var words = this.bratWords(includeEmpty);
         var tokens = this.bratTokens();
 
         var wordText = words.map(function(w) { return w.form }).join(' ');
@@ -334,12 +337,12 @@ var ConllU = (function(window, undefined) {
 
     // return the annotated text spans of the sentence for visualization
     // with brat.
-    Sentence.prototype.bratSpans = function() {
+    Sentence.prototype.bratSpans = function(includeEmpty) {
         var spans = [],
             offset = this.baseOffset;
 
         // create an annotation for each word
-        var words = this.bratWords();
+        var words = this.bratWords(includeEmpty);
         for (var i=0; i<words.length; i++) {
             var length = words[i].form.length;
             spans.push([this.id+'-T'+words[i].id, words[i].upostag,
@@ -352,8 +355,8 @@ var ConllU = (function(window, undefined) {
 
     // return attributes of sentence annotations for visualization
     // with brat.
-    Sentence.prototype.bratAttributes = function() {
-        var words = this.words();
+    Sentence.prototype.bratAttributes = function(includeEmpty) {
+        var words = this.words(includeEmpty);
 
         // create attributes for word features
         var attributes = [],
@@ -374,7 +377,7 @@ var ConllU = (function(window, undefined) {
 
     // return relations for sentence dependencies for visualization
     // with brat.
-    Sentence.prototype.bratRelations = function() {
+    Sentence.prototype.bratRelations = function(includeEmpty) {
         var dependencies = this.dependencies();
         var relations = [];
 
@@ -390,8 +393,8 @@ var ConllU = (function(window, undefined) {
 
     // return comments (notes) on sentence annotations for
     // visualization with brat.
-    Sentence.prototype.bratComments = function() {
-        var words = this.words();
+    Sentence.prototype.bratComments = function(includeEmpty) {
+        var words = this.words(includeEmpty);
 
         // TODO: better visualization for LEMMA, XPOSTAG, and MISC.
         var comments = [];
@@ -414,8 +417,9 @@ var ConllU = (function(window, undefined) {
     // Return styles on sentence annotations for visualization with
     // brat. Note: this feature is an extension of both the CoNLL-U
     // comment format and the basic brat data format.
-    Sentence.prototype.bratStyles = function() {
-        var styles = [];
+    Sentence.prototype.bratStyles = function(includeEmpty) {
+        var styles = [],
+            wildcards = [];
 
         for (var i=0; i<this.comments.length; i++) {
             var comment = this.comments[i];
@@ -427,16 +431,40 @@ var ConllU = (function(window, undefined) {
             var styleSpec = m[2];
 
             // Attempt to parse as a visual style specification. The
-            // expected format is "REF<SPACE>KEY:VALUE", where REF
-            // is either a single ID (for a span) or a space-separated
-            // ID1 ID2 TYPE triple (for a relation).
-            m = styleSpec.match(/^([^\t]+)\s+(\S+?):(\S+)\s*$/);
+            // expected format is "REF<SPACE>STYLE", where REF
+            // is either a single ID (for a span), a space-separated
+            // ID1 ID2 TYPE triple (for a relation), or a special
+            // wildcard value like "arcs", and STYLE is either
+            // a colon-separated key-value pair or a color.
+            m = styleSpec.match(/^([^\t]+)\s+(\S+)\s*$/);
             if (!m) {
                 // TODO: avoid console.log
                 console.log('warning: failed to parse: "'+comment+'"');
                 continue;
             }
-            var reference = m[1], key = m[2], value = m[3];
+            var reference = m[1], style = m[2];
+
+            // split style into key and value, adding a key to
+            // color-only styles as needed for the reference type.
+            var key, value;
+            m = style.match(/^(\S+):(\S+)$/);
+            if (m) {
+                key = m[1];
+                value = m[2];
+            } else {
+                value = style;
+                if (reference === 'arcs' || reference.indexOf(' ') !== -1) {
+                    key = 'color';
+                } else {
+                    key = 'bgColor';
+                }
+            }
+
+            // store wildcards for separate later processing
+            if (reference.match(/^(nodes|arcs)$/)) {
+                wildcards.push([reference, key, value]);
+                continue;
+            }
 
             // adjust every ID in reference for brat
             if (reference.indexOf(' ') === -1) {
@@ -448,6 +476,42 @@ var ConllU = (function(window, undefined) {
             }
 
             styles.push([reference, key, value]);
+        }
+
+        // for expanding wildcards, first determine which words / arcs
+        // styles have already been set, and then add the style to
+        // everything that hasn't.
+        var setStyle = {};
+        for (var i=0; i<styles.length; i++) {
+            setStyle[styles[i][0].concat([styles[i][1]])] = true;
+        }
+        for (var i=0; i<wildcards.length; i++) {
+            var reference = wildcards[i][0],
+                key = wildcards[i][1],
+                value = wildcards[i][2];
+            if (reference === 'nodes') {
+                var words = this.words(includeEmpty);
+                for (var j=0; j<words.length; j++) {
+                    var r = this.id + '-T' + words[j].id;
+                    if (!setStyle[r.concat([key])]) {
+                        styles.push([r, key, value]);
+                        setStyle[r.concat([key])] = true;
+                    }
+                }
+            } else if (reference === 'arcs') {
+                var deps = this.dependencies();
+                for (var j=0; j<deps.length; j++) {
+                    var r = [this.id + '-T' + deps[j][1],
+                             this.id + '-T' + deps[j][0],
+                             deps[j][2]];
+                    if (!setStyle[r.concat([key])]) {
+                        styles.push([r, key, value]);
+                        setStyle[r.concat([key])] = true;
+                    }
+                }
+            } else {
+                console.log('internal error');
+            }
         }
         
         return styles;
@@ -473,14 +537,15 @@ var ConllU = (function(window, undefined) {
 
     // Return representation of sentence in brat embedded format (see
     // http://brat.nlplab.org/embed.html).
+    // If includeEmpty is truthy, include empty nodes in the representation.
     // Note: "styles" is an extension, not part of the basic format.
-    Sentence.prototype.toBrat = function() {
-        var text = this.bratText();
-        var spans = this.bratSpans();
-        var attributes = this.bratAttributes();
-        var relations = this.bratRelations();
-        var comments = this.bratComments();
-        var styles = this.bratStyles();
+    Sentence.prototype.toBrat = function(includeEmpty) {
+        var text = this.bratText(includeEmpty);
+        var spans = this.bratSpans(includeEmpty);
+        var attributes = this.bratAttributes(includeEmpty);
+        var relations = this.bratRelations(includeEmpty);
+        var comments = this.bratComments(includeEmpty);
+        var styles = this.bratStyles(includeEmpty);
         var labels = [this.bratLabel()];
 
         return {
@@ -516,6 +581,7 @@ var ConllU = (function(window, undefined) {
         this.validateUniqueIds(issues);
         this.validateWordSequence(issues);
         this.validateMultiwordSequence(issues);
+        this.validateEmptyNodeSequence(issues);
         this.validateReferences(issues);
 
         return issues;
@@ -550,7 +616,7 @@ var ConllU = (function(window, undefined) {
         for (var i=0; i<this.elements.length; i++) {
             var element = this.elements[i];
 
-            if (element.isMultiword()) {
+            if (element.isMultiword() || element.isEmptyNode()) {
                 continue; // only check simple word sequence here
             }
             
@@ -586,6 +652,33 @@ var ConllU = (function(window, undefined) {
 
         return issues.length === initialIssueCount;
     };
+
+    Sentence.prototype.validateEmptyNodeSequence = function(issues) {
+        issues = (issues !== undefined ? issues : []);
+
+        var initialIssueCount = issues.length;
+        var previousWordId = '0';    // TODO check https://github.com/UniversalDependencies/docs/issues/382
+        var nextEmptyNodeId = 1;
+
+        for (var i=0; i<this.elements.length; i++) {
+            var element = this.elements[i];
+
+            if (element.isWord()) {
+                previousWordId = element.id;
+                nextEmptyNodeId = 1;
+            } else if (element.isEmptyNode()) {
+                var expectedId = previousWordId + '.' + nextEmptyNodeId;
+                if (element.id !== expectedId) {
+                    this.addError('empty node IDs should be *.1, *.2, ... ' +
+                                  'expected '+expectedId+', got '+element.id,
+                                  element, issues);
+                }
+                nextEmptyNodeId++;
+            }
+        }
+
+        return issues.length === initialIssueCount;
+    }
 
     // Check validity of ID references in HEAD and DEPS.
     Sentence.prototype.validateReferences = function(issues) {
@@ -632,6 +725,10 @@ var ConllU = (function(window, undefined) {
             this.repairMultiwordSequence(log);
         }
 
+        if (!this.validateEmptyNodeSequence()) {
+            this.repairEmptyNodeSequence(log);
+        }
+
         if (!this.validateReferences()) {
             this.repairReferences(log);
         }
@@ -667,6 +764,11 @@ var ConllU = (function(window, undefined) {
 
     Sentence.prototype.repairMultiwordSequence = function(log) {
         log('TODO: implement ConllU.Sentence.repairMultiwordSequence()');
+        return true;
+    };
+
+    Sentence.prototype.repairEmptyNodeSequence = function(log) {
+        log('TODO: implement ConllU.Sentence.repairEmptyNodeSequence()');
         return true;
     };
 
@@ -904,6 +1006,8 @@ var ConllU = (function(window, undefined) {
             return true; // exceptional case for Element.repair()
         } else if (!this.validateField(head, 'HEAD', issues)) {
             return false;
+        } else if (this.isEmptyNode() && head === '_') {
+            return true; // underscore permitted for empty nodes.
         } else if (!head.match(/^\d+$/)) {
             issues.push('HEAD must be an ID or zero: "'+head+'"');
             return false;
@@ -978,6 +1082,10 @@ var ConllU = (function(window, undefined) {
         return !!this.id.match(/^\d+-\d+$/);
     };
 
+    Element.prototype.isEmptyNode = function() {
+        return !!this.id.match(/^\d+\.\d+$/);
+    };
+
     Element.prototype.rangeFrom = function() {
         return parseInt(this.id.match(/^(\d+)-\d+$/)[1], 10);
     };
@@ -1007,7 +1115,8 @@ var ConllU = (function(window, undefined) {
                 if (m) {
                     elemDeps.push([this.id, m[1], m[2]]);
                 } else {
-                    console.log('internal error: dependencies(): invalid DEPS');
+                    console.log('internal error: dependencies(): invalid DEPS',
+                                this.deps);
                 }
             }
         }
@@ -1262,13 +1371,13 @@ var ConllU = (function(window, undefined) {
      */
 
     // match single (feature, value[s]) pair in FEATS
-    var featureRegex = /^([A-Z0-9][a-zA-Z0-9]*)=([A-Z0-9][a-zA-Z0-9]*(?:,[A-Z0-9][a-zA-Z0-9]*)*)$/;
+    var featureRegex = /^([A-Z0-9][a-zA-Z0-9]*(?:\[[a-z0-9]+\])?)=([A-Z0-9][a-zA-Z0-9]*(?:,[A-Z0-9][a-zA-Z0-9]*)*)$/;
 
     // match single feature value in FEATS
     var featureValueRegex = /^[A-Z0-9][a-zA-Z0-9]*$/;
 
     // match single (head, deprel) pair in DEPS
-    var dependencyRegex = /^(\d+):(.*)$/;
+    var dependencyRegex = /^(\d+(?:\.\d+)?):(.*)$/;
 
     return {
 	Document: Document,
