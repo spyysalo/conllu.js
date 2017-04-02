@@ -173,9 +173,12 @@ var ConllU = (function(window, undefined) {
         return this;
     }
 
-    Document.prototype.toBrat = function(logger) {
+    Document.prototype.toBrat = function(logger, includeEmpty) {
         if (logger !== undefined) {
             this.logger = logger;
+        }
+        if (includeEmpty === undefined) {
+            includeEmpty = false;    // hide empty nodes by default
         }
 
         // merge brat data over all sentences
@@ -207,7 +210,7 @@ var ConllU = (function(window, undefined) {
                 }
             }
             sentence.setBaseOffset(textOffset !== 0 ? textOffset + 1 : 0);
-            bratData = sentence.toBrat();
+            bratData = sentence.toBrat(includeEmpty);
             
             // merge
             if (mergedBratData['text'].length !== 0) {
@@ -260,9 +263,9 @@ var ConllU = (function(window, undefined) {
         return dependencies;
     };
 
-    Sentence.prototype.words = function() {
+    Sentence.prototype.words = function(includeEmpty) {
         return this.elements.filter(function(e) { 
-            return e.isWord();
+            return (e.isWord() || (includeEmpty && e.isEmptyNode()));
         });
     };
 
@@ -290,8 +293,8 @@ var ConllU = (function(window, undefined) {
 
     // return words with possible modifications for visualization with
     // brat
-    Sentence.prototype.bratWords = function() {
-        var words = this.words();
+    Sentence.prototype.bratWords = function(includeEmpty) {
+        var words = this.words(includeEmpty);
         
         for (var i=0; i<words.length; i++) {
             if (isRtl(words[i].form)) {
@@ -317,8 +320,8 @@ var ConllU = (function(window, undefined) {
     };
 
     // return the text of the sentence for visualization with brat
-    Sentence.prototype.bratText = function() {
-        var words = this.bratWords();
+    Sentence.prototype.bratText = function(includeEmpty) {
+        var words = this.bratWords(includeEmpty);
         var tokens = this.bratTokens();
 
         var wordText = words.map(function(w) { return w.form }).join(' ');
@@ -334,12 +337,12 @@ var ConllU = (function(window, undefined) {
 
     // return the annotated text spans of the sentence for visualization
     // with brat.
-    Sentence.prototype.bratSpans = function() {
+    Sentence.prototype.bratSpans = function(includeEmpty) {
         var spans = [],
             offset = this.baseOffset;
 
         // create an annotation for each word
-        var words = this.bratWords();
+        var words = this.bratWords(includeEmpty);
         for (var i=0; i<words.length; i++) {
             var length = words[i].form.length;
             spans.push([this.id+'-T'+words[i].id, words[i].upostag,
@@ -352,8 +355,8 @@ var ConllU = (function(window, undefined) {
 
     // return attributes of sentence annotations for visualization
     // with brat.
-    Sentence.prototype.bratAttributes = function() {
-        var words = this.words();
+    Sentence.prototype.bratAttributes = function(includeEmpty) {
+        var words = this.words(includeEmpty);
 
         // create attributes for word features
         var attributes = [],
@@ -374,7 +377,7 @@ var ConllU = (function(window, undefined) {
 
     // return relations for sentence dependencies for visualization
     // with brat.
-    Sentence.prototype.bratRelations = function() {
+    Sentence.prototype.bratRelations = function(includeEmpty) {
         var dependencies = this.dependencies();
         var relations = [];
 
@@ -390,8 +393,8 @@ var ConllU = (function(window, undefined) {
 
     // return comments (notes) on sentence annotations for
     // visualization with brat.
-    Sentence.prototype.bratComments = function() {
-        var words = this.words();
+    Sentence.prototype.bratComments = function(includeEmpty) {
+        var words = this.words(includeEmpty);
 
         // TODO: better visualization for LEMMA, XPOSTAG, and MISC.
         var comments = [];
@@ -414,7 +417,7 @@ var ConllU = (function(window, undefined) {
     // Return styles on sentence annotations for visualization with
     // brat. Note: this feature is an extension of both the CoNLL-U
     // comment format and the basic brat data format.
-    Sentence.prototype.bratStyles = function() {
+    Sentence.prototype.bratStyles = function(includeEmpty) {
         var styles = [],
             wildcards = [];
 
@@ -487,7 +490,7 @@ var ConllU = (function(window, undefined) {
                 key = wildcards[i][1],
                 value = wildcards[i][2];
             if (reference === 'nodes') {
-                var words = this.words();
+                var words = this.words(includeEmpty);
                 for (var j=0; j<words.length; j++) {
                     var r = this.id + '-T' + words[j].id;
                     if (!setStyle[r.concat([key])]) {
@@ -534,14 +537,15 @@ var ConllU = (function(window, undefined) {
 
     // Return representation of sentence in brat embedded format (see
     // http://brat.nlplab.org/embed.html).
+    // If includeEmpty is truthy, include empty nodes in the representation.
     // Note: "styles" is an extension, not part of the basic format.
-    Sentence.prototype.toBrat = function() {
-        var text = this.bratText();
-        var spans = this.bratSpans();
-        var attributes = this.bratAttributes();
-        var relations = this.bratRelations();
-        var comments = this.bratComments();
-        var styles = this.bratStyles();
+    Sentence.prototype.toBrat = function(includeEmpty) {
+        var text = this.bratText(includeEmpty);
+        var spans = this.bratSpans(includeEmpty);
+        var attributes = this.bratAttributes(includeEmpty);
+        var relations = this.bratRelations(includeEmpty);
+        var comments = this.bratComments(includeEmpty);
+        var styles = this.bratStyles(includeEmpty);
         var labels = [this.bratLabel()];
 
         return {
@@ -1111,7 +1115,8 @@ var ConllU = (function(window, undefined) {
                 if (m) {
                     elemDeps.push([this.id, m[1], m[2]]);
                 } else {
-                    console.log('internal error: dependencies(): invalid DEPS');
+                    console.log('internal error: dependencies(): invalid DEPS',
+                                this.deps);
                 }
             }
         }
@@ -1372,7 +1377,7 @@ var ConllU = (function(window, undefined) {
     var featureValueRegex = /^[A-Z0-9][a-zA-Z0-9]*$/;
 
     // match single (head, deprel) pair in DEPS
-    var dependencyRegex = /^(\d+):(.*)$/;
+    var dependencyRegex = /^(\d+(?:\.\d+)?):(.*)$/;
 
     return {
 	Document: Document,
