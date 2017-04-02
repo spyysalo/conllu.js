@@ -838,17 +838,21 @@ var ConllU = (function(window, undefined) {
     };
 
     // constraints that hold for all fields
-    Element.prototype.validateField = function(field, name, issues) {
+    Element.prototype.validateField = function(field, name, issues,
+                                               allowSpace) {
         name = (name !== undefined ? name : 'field');
         issues = (issues !== undefined ? issues : []);
-        
+        if (allowSpace === undefined) {
+            allowSpace = false;
+        }
+
         if (field === undefined) {
             issues.push('invalid '+name);
             return false;
         } else if (field.length === 0) {
             issues.push(name+' must not be empty: "'+field+'"');
             return false;
-        } else if (hasSpace(field)) {
+        } else if (hasSpace(field) && !allowSpace) {
             issues.push(name+' must not contain space: "'+field+'"');
             return false;
         } else {
@@ -905,7 +909,7 @@ var ConllU = (function(window, undefined) {
     Element.prototype.validateForm = function(form, issues) {
         issues = (issues !== undefined ? issues : []);
         
-        if (!this.validateField(form, 'FORM', issues)) {
+        if (!this.validateField(form, 'FORM', issues, true)) {
             return false;
         } else {
             return true;
@@ -915,7 +919,7 @@ var ConllU = (function(window, undefined) {
     Element.prototype.validateLemma = function(lemma, issues) {
         issues = (issues !== undefined ? issues : []);
         
-        if (!this.validateField(lemma, 'LEMMA', issues)) {
+        if (!this.validateField(lemma, 'LEMMA', issues, true)) {
             return false;
         } else {
             return true;
