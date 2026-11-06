@@ -1293,10 +1293,16 @@ var ConllU = (function(window, undefined) {
 
     var looseFieldSplitter = function(line) {
         // loose CoNLL format parsing: split on any space sequence, trim
-        // surrounding space.    
+        // surrounding space.
+        // If 2 or more consecutive whitespace characters are used as separators,
+        // this allows spaces within fields such as FORM and LEMMA (UD v2).
         line = line.trim();
         if (line.length === 0) {
             return [];
+        }
+        var multiSpaceParts = line.split(/[ \t]{2,}/);
+        if (multiSpaceParts.length === 10) {
+            return multiSpaceParts;
         } else {
             return line.split(/\s+/);
         }
@@ -1383,10 +1389,20 @@ var ConllU = (function(window, undefined) {
     // match single (head, deprel) pair in DEPS
     var dependencyRegex = /^(\d+(?:\.\d+)?):(.*)$/;
 
-    return {
-	Document: Document,
-	Sentence: Sentence,
+    var conllu = {
+        Document: Document,
+        Sentence: Sentence,
         Element: Element,
     };
 
-})(window);
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = conllu;
+    }
+    if (typeof window !== 'undefined') {
+        window.ConllU = conllu;
+    }
+
+    return conllu;
+
+})(typeof window !== 'undefined' ? window : this);
+

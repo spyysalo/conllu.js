@@ -69,6 +69,10 @@ two "structured comments", <code>visual-style</code> and
 
 <p>Here's a validating visualizer. Visualization:</p>
 <div id="vis"></div>
+<div style="margin: 8px 0 16px 0;">
+  <button id="download-svg" type="button" style="padding: 5px 12px; cursor: pointer;">Download SVG</button>
+  <button id="download-png" type="button" style="padding: 5px 12px; cursor: pointer; margin-left: 8px;">Download PNG</button>
+</div>
 
 <p> Input (editable):</p>
 <textarea id="input" rows="10" cols="80" style="margin-top:0"></textarea>
@@ -120,7 +124,7 @@ Dependencies</a> for an example of a project using the library.</p>
         root + 'lib/brat/visualizer.js',
 
         // annotation documentation support
-        'http://spyysalo.github.io/annodoc/lib/local/annodoc.js',
+        'https://spyysalo.github.io/annodoc/lib/local/annodoc.js',
         root + 'lib/local/config.js',
 
         // the conllu.js library itself
@@ -135,9 +139,176 @@ Dependencies</a> for an example of a project using the library.</p>
     /* not used here */
     var documentCollections = {};
 
+    function getPreparedSVG() {
+        var container = document.getElementById('vis');
+        if (!container) return null;
+        var svg = container.querySelector('svg');
+        if (!svg) return null;
+
+        var clone = svg.cloneNode(true);
+        // Ensure xmlns is present
+        if (!clone.getAttribute('xmlns')) {
+            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        }
+        if (!clone.getAttribute('xmlns:xlink')) {
+            clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+        }
+
+        // Compute actual dimensions or bounding box
+        var bbox = svg.getBBox ? svg.getBBox() : null;
+        var width = svg.width && svg.width.baseVal ? svg.width.baseVal.value : svg.clientWidth;
+        var height = svg.height && svg.height.baseVal ? svg.height.baseVal.value : svg.clientHeight;
+
+        if ((!width || width <= 1) && bbox && bbox.width > 0) {
+            width = bbox.x + bbox.width + 20;
+        }
+        if ((!height || height <= 1) && bbox && bbox.height > 0) {
+            height = bbox.y + bbox.height + 20;
+        }
+
+        width = Math.ceil(width || 800);
+        height = Math.ceil(height || 300);
+
+        clone.setAttribute('width', width);
+        clone.setAttribute('height', height);
+
+        // Add explicit white background rect so transparent background doesn't render dark
+        var bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('x', '0');
+        bgRect.setAttribute('y', '0');
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('fill', '#ffffff');
+        clone.insertBefore(bgRect, clone.firstChild);
+
+        // Include critical visualizer CSS rules directly inside the SVG so fonts,
+        // arc strokes, labels, arrows, and tags display identical to the webpage.
+        var embeddedCss = ''
+            + 'text { font-family: "Liberation Sans", Verdana, Arial, Helvetica, sans-serif; font-size: 13px; } '
+            + 'path { pointer-events: none; } '
+            + '.span text { font-size: 10px; text-anchor: middle; font-family: "PT Sans Caption", sans-serif; } '
+            + '.span_type_label, .arc_type_label { font-size: 11px; font-family: "PT Sans Caption", sans-serif; } '
+            + '.span rect { stroke-width: 0.75; } '
+            + '.span path { fill: none; } '
+            + '.span path.curly { stroke-width: 0.5; } '
+            + '.arcs path { stroke: #989898; fill: none; stroke-width: 1; } '
+            + '.arcs .highlight path { stroke: #000000; stroke-width: 1.5; } '
+            + '.arcs text { font-size: 9px; text-anchor: middle; font-family: "PT Sans Caption", sans-serif; } '
+            + '.background0 { stroke: none; fill: #ffffff; } '
+            + '.background1 { stroke: none; fill: #eeeeee; } '
+            + '.backgroundHighlight { stroke: none; fill: #ffff99; } '
+            + '.sentnum text { fill: #999999; text-anchor: end; } '
+            + '.sentnum path { stroke: #999999; stroke-width: 1px; } ';
+
+        // Try extracting any additional rules from style-vis.css link tag
+        try {
+            for (var s = 0; s < document.styleSheets.length; s++) {
+                var sheet = document.styleSheets[s];
+                if (sheet.href && sheet.href.indexOf('style-vis.css') !== -1) {
+                    var rules = sheet.cssRules || sheet.rules;
+                    if (rules) {
+                        for (var r = 0; r < rules.length; r++) {
+                            embeddedCss += rules[r].cssText + ' ';
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            // cross-origin restriction fallback; embeddedCss already has essentials
+        }
+
+        var styleElem = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        styleElem.setAttribute('type', 'text/css');
+        styleElem.textContent = embeddedCss;
+        clone.insertBefore(styleElem, clone.firstChild);
+
+        return {
+            svgElement: clone,
+            width: width,
+            height: height,
+            xml: new XMLSerializer().serializeToString(clone)
+        };
+    }
+
+    function downloadSVG() {
+        var prepared = getPreparedSVG();
+        if (!prepared) {
+            alert('No visualization available to download.');
+            return;
+        }
+        var blob = new Blob([prepared.xml], { type: 'image/svg+xml;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'conllu-visualization.svg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadPNG() {
+        var prepared = getPreparedSVG();
+        if (!prepared) {
+            alert('No visualization available to download.');
+            return;
+        }
+
+        var scale = 2; // 2x for sharp retina output
+        var canvas = document.createElement('canvas');
+        canvas.width = prepared.width * scale;
+        canvas.height = prepared.height * scale;
+        var ctx = canvas.getContext('2d');
+
+        var blob = new Blob([prepared.xml], { type: 'image/svg+xml;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var img = new Image();
+
+        img.onload = function() {
+            // Fill background white
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+
+            if (canvas.toBlob) {
+                canvas.toBlob(function(pngBlob) {
+                    var pngUrl = URL.createObjectURL(pngBlob);
+                    var a = document.createElement('a');
+                    a.href = pngUrl;
+                    a.download = 'conllu-visualization.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(pngUrl);
+                }, 'image/png');
+            } else {
+                var pngUrl = canvas.toDataURL('image/png');
+                var a = document.createElement('a');
+                a.href = pngUrl;
+                a.download = 'conllu-visualization.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        };
+
+        img.onerror = function() {
+            URL.revokeObjectURL(url);
+            alert('Failed to render SVG onto PNG canvas.');
+        };
+
+        img.src = url;
+    }
+
     head.ready(function() {
 	// performes all embedding and support functions
 	Annodoc.activate(Config.bratCollData, documentCollections);
+
+        var svgBtn = document.getElementById('download-svg');
+        var pngBtn = document.getElementById('download-png');
+        if (svgBtn) svgBtn.addEventListener('click', downloadSVG);
+        if (pngBtn) pngBtn.addEventListener('click', downloadPNG);
     });
 </script>
 
